@@ -4,7 +4,7 @@ function _init()
  globalg = {}
  globalg.dt = 1/30
  globalg.framestepcount=0
- globalg.framesperstep=60
+ globalg.framesperstep=10
  globalg.pause = false
  globalg.debugstr = ""
 
@@ -18,9 +18,9 @@ function _init()
    grid.items[x] = {}
   for y=-1,grid.height do
    if x==-1 or y==-1 or x==-1 or y==-1 then
-    grid.items[x][y] = {type="border",burned=false}
+    grid.items[x][y] = createborder()
    else
-    grid.items[x][y] = {type="grass",burned=false}
+    grid.items[x][y] = creategrass()
    end
    
   end
@@ -28,6 +28,43 @@ function _init()
 
  globalg.grid = grid
 
+end
+
+-- accurate to .xxxx
+function rndper(p)
+ local d = flr(p*10000)
+ return rnd(10000) < d
+end
+
+function createitem()
+ return {type=nil,burned=false}
+end
+
+function createborder()
+ local i = createitem()
+ i.type = "border"
+ return i
+end
+
+function creategrass()
+ local i = createitem()
+ i.type = "grass"
+ return i
+end
+
+function createdirt()
+ local i = createitem()
+ i.type = "dirt"
+ return i
+end
+
+function createfire()
+ local i = createitem()
+ i.type = "fire"
+ i.dwindlechance = .70
+ i.spreadchance = .25
+ i.burnheight = 4
+ return i
 end
 
 function _update()
@@ -52,7 +89,7 @@ end
 
 function update(grid, shouldstep)
  if btnp(2) then
-  grid.items[0][0].type = "fire"
+  grid.items[5][5].burned = true
  end
 
 
@@ -67,10 +104,23 @@ function stepgrid(grid)
   for y=0,grid.height-1 do
    obj = grid.items[x][y]
    if (obj.type == "fire") then
-    grid.items[x+1][y].burned = true
-    grid.items[x-1][y].burned = true
-    grid.items[x][y+1].burned = true
-    grid.items[x][y-1].burned = true
+    if rndper(obj.spreadchance) then
+     grid.items[x+1][y].burned = true
+    end
+    if rndper(obj.spreadchance) then
+     grid.items[x-1][y].burned = true
+    end
+    if rndper(obj.spreadchance) then
+     grid.items[x][y+1].burned = true
+    end
+    if rndper(obj.spreadchance) then
+     grid.items[x][y-1].burned = true
+    end
+
+    if rndper(obj.dwindlechance) then
+     obj.burnheight -= 1
+    end
+
    end
   end
  end
@@ -78,10 +128,22 @@ function stepgrid(grid)
  for x=0,grid.width-1 do
   for y=0,grid.height-1 do
    obj = grid.items[x][y]
-   if (obj.burned == true) then
-    obj.type = "fire"
-    obj.burned = false
+
+   if (obj.type == "border") then
+    -- do nothing
+   elseif (obj.type == "fire") then
+    if obj.burnheight <= 0 then
+     grid.items[x][y] = createdirt()
+    end
+   elseif (obj.type == "grass") then
+    if obj.burned then
+     grid.items[x][y] = createfire()
+    end
+   elseif (obj.type == "dirt") then
+    -- do nothing
    end
+
+
   end
  end
 
