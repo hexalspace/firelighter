@@ -61,9 +61,10 @@ end
 function createfire()
  local i = createitem()
  i.type = "fire"
- i.dwindlechance = .70
- i.spreadchance = .25
- i.burnheight = 4
+ i.dwindlechance = .90
+ i.spreadchance = .90
+ i.burnheight = 10
+ i.burnheightmax = 10
  return i
 end
 
@@ -104,16 +105,17 @@ function stepgrid(grid)
   for y=0,grid.height-1 do
    obj = grid.items[x][y]
    if (obj.type == "fire") then
-    if rndper(obj.spreadchance) then
+    local burnmod = obj.burnheight/obj.burnheightmax
+    if rndper(obj.spreadchance*burnmod) then
      grid.items[x+1][y].burned = true
     end
-    if rndper(obj.spreadchance) then
+    if rndper(obj.spreadchance*burnmod) then
      grid.items[x-1][y].burned = true
     end
-    if rndper(obj.spreadchance) then
+    if rndper(obj.spreadchance*burnmod) then
      grid.items[x][y+1].burned = true
     end
-    if rndper(obj.spreadchance) then
+    if rndper(obj.spreadchance*burnmod) then
      grid.items[x][y-1].burned = true
     end
 
@@ -157,6 +159,46 @@ function _draw()
  end
 end
 
+function pointdistance(x1,y1,x2,y2)
+ local xsqu = (x2-x1)*(x2-x1)
+ local ysqu = (y2-y1)*(y2-y1)
+ return sqrt(xsqu + ysqu)
+end
+
+function drawfire(ix,iy,width,height,burnheight,burnheightmax)
+ --using sprite sheet spot 32 as tempspace and avoiding pset
+ local sx = 0
+ local sy = 16 
+
+  -- fire hottest point
+ local fhp = {x=sx+(width/2), y=sy+height}
+ -- max distance fire can be drawn from hp
+ local maxdisthp = (9*(height/10))*(burnheight/burnheightmax)
+
+ for x=sx,sx+width-1 do
+  for y=sy,sy+height-1 do
+   local dist = pointdistance(x,y, fhp.x, fhp.y)
+   local distmod = 1-(min(1,(dist/maxdisthp)))
+   -- white
+   if rndper(distmod*.2) then
+    sset(x,y,7)
+   -- orange
+   elseif rndper(distmod*.6) then
+    sset(x,y,9)
+   -- red
+   elseif rndper(distmod*.3) then
+    sset(x,y,8)
+   -- black
+   else
+    sset(x,y,0)
+   end
+  end
+ end
+ -- background for fire
+ spr(6,ix,iy)
+ sspr(sx,sy,width,height,ix,iy)
+end
+
 
 function draw(grid)
  cls()
@@ -166,7 +208,7 @@ function draw(grid)
    if (obj.type == "grass") then
     spr(5,x*8,y*8)
    elseif (obj.type == "fire") then
-    spr(1,x*8,y*8)
+    drawfire(x*8,y*8,8,8,obj.burnheight,obj.burnheightmax)
    elseif (obj.type == "dirt") then
     spr(4,x*8,y*8)
    end
