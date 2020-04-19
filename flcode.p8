@@ -4,7 +4,7 @@ function _init()
  globalg = {}
  globalg.dt = 1/30
  globalg.framestepcount=0
- globalg.framesperstep=60
+ globalg.framesperstep=100
  globalg.pause = false
  globalg.debugstr = ""
 
@@ -95,21 +95,29 @@ function _update()
  --end
 
  if not g.pause then
-  g.framestepcount+=1
-  local shouldstep = false
-  if (g.framestepcount >= g.framesperstep) then
-   shouldstep = true
-   g.framestepcount = 0
-  end
-
-  update(globalg.grid, shouldstep)
+  update(globalg, globalg.grid, shouldstep)
  end
 
 end
 
 
 
-function update(grid, shouldstep)
+function update(g, grid, shouldstep)
+
+  -- if commited to turn, allow advancing of time
+  local stepmod = 1
+  if btn(4) then
+   stepmod = 4
+  end
+
+  g.framestepcount+= (1*stepmod)
+  local shouldstep = false
+  if (g.framestepcount >= g.framesperstep) then
+   shouldstep = true
+   g.framestepcount = 0
+  end
+
+ -- placeholder game start
  if btnp(2) then
   grid.items[5][5].burned = true
  end
@@ -125,19 +133,12 @@ function update(grid, shouldstep)
   pl.dir = "down"
  end
 
- if btnp(4) then
-  pl.selabil = pl.selabil - 1
-  if (pl.selabil < 1) then
-   pl.selabil = #pl.abil
-  end
- elseif btnp(5) then
+ if btnp(5) then
   pl.selabil = pl.selabil + 1
   if (pl.selabil > #pl.abil) then
    pl.selabil = 1
   end
  end
-
-
 
  if (shouldstep == true) then
   stepplayer(grid)
@@ -151,16 +152,53 @@ function stepplayer(grid)
  local abil = pl.abil[pl.selabil]
 
  if (abil.name == "walk") then
-  stepplayerwalk(grid)
+  stepplayerwalk(grid, pl)
  elseif (abil.name == "dash") then
-  -- elseif code
+  stepplayerdash(grid, pl)
  elseif (abil.name == "sleep") then
   -- do nothing
  end
+ -- not sure if this is better or worse control wise
+ -- to zero out the dir
+ pl.dir = nil
 
 end
 
-function stepplayerwalk(grid)
+function stepplayerdash(grid, pl)
+
+ if pl.dir == nil then
+  return
+ end
+
+ local tx,ty = pl.x,pl.y
+ local nx,ny = tx,ty
+
+ repeat
+  nx = tx
+  ny = ty
+  if pl.dir == "left" then
+   tx -= 1
+  elseif pl.dir == "right" then
+   tx += 1
+  elseif pl.dir == "up" then
+   ty -= 1
+  elseif pl.dir == "down" then
+   ty += 1
+  end
+ until (not grid.items[tx][ty].walkable)
+
+ pl.x = nx
+ pl.y = ny
+
+end
+
+
+function stepplayerwalk(grid, pl)
+ 
+ if pl.dir == nil then
+  return
+ end
+
  local pl = grid.player
  local nx,ny = pl.x,pl.y
 
@@ -173,13 +211,11 @@ function stepplayerwalk(grid)
  elseif pl.dir == "down" then
   ny += 1
  end
- pl.dir = nil
 
  if grid.items[nx][ny].walkable then
   pl.x = nx
   pl.y = ny
  end
-
 
 end
 
