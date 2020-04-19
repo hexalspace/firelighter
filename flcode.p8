@@ -4,19 +4,19 @@ function _init()
  globalg = {}
  globalg.dt = 1/30
  globalg.framestepcount=0
- globalg.framesperstep=10
+ globalg.framesperstep=60
  globalg.pause = false
  globalg.debugstr = ""
 
  local grid = {}
  grid.width = 16
- grid.height = 16
+ grid.height = 14
  grid.items = {}
 
  local player = {}
  player.x = 5
  player.y = 5
- player.dir = 0
+ player.dir = nil
 
  grid.player = player
 
@@ -113,8 +113,25 @@ function update(grid, shouldstep)
 
 
  if (shouldstep == true) then
+  stepplayer(grid)
   stepgrid(grid)
  end
+
+end
+
+function stepplayer(grid)
+ local pl = grid.player
+
+ if pl.dir == "left" then
+  pl.x -= 1
+ elseif pl.dir == "right" then
+  pl.x += 1
+ elseif pl.dir == "up" then
+  pl.y -= 1
+ elseif pl.dir == "down" then
+  pl.y += 1
+ end
+  pl.dir = nil
 
 end
 
@@ -172,7 +189,7 @@ end
 function _draw()
  local g = globalg
  if not g.pause then
-  draw(g.grid)
+  draw(g)
   dprintflush()
  end
 end
@@ -206,6 +223,44 @@ function drawfire(ix,iy,fireheight)
  clip()
 end
 
+function drawrect(x,y,w,h,col)
+ rectfill(x,y,x+w-1,y+h-1,col)
+end
+
+function drawhud(game)
+ local g = game
+ local pl = g.grid.player
+
+ local perc = g.framestepcount / g.framesperstep
+
+ local barcol = 7
+ if perc > .8 then
+  barcol = 8
+ elseif perc > .5 then
+  barcol = 6
+ else
+  barcol = 5
+ end
+
+ -- draw turn timer
+ local barheight = 4
+
+ local maxwidth = 8*8 + (4) -- allow a lil overlap
+ local barwidth = maxwidth*perc
+
+ -- draw bar from left
+ local x1 = 0
+ local y = (8*16)-1-barheight
+ drawrect(x1,y,barwidth,barheight,barcol)
+
+ -- draw bar from right
+ local minx2 = 8*8
+ local x2 = minx2 + (minx2 - barwidth)
+ drawrect(x2,y,barwidth,barheight,barcol)
+
+
+end
+
 function drawplayer(grid)
  -- draw player sprite
  local pl = grid.player
@@ -231,9 +286,10 @@ function drawplayer(grid)
  palt()
 end
 
-function draw(grid)
- drawgrid(grid)
- drawplayer(grid)
+function draw(game)
+ drawgrid(game.grid)
+ drawplayer(game.grid)
+ drawhud(game)
 end
 
 
