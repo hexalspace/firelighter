@@ -8,10 +8,16 @@ function _init()
  globalg.pause = false
  globalg.debugstr = ""
 
- grid = {}
+ local grid = {}
  grid.width = 16
  grid.height = 16
  grid.items = {}
+
+ local player = {}
+ player.x = 5
+ player.y = 5
+
+ grid.player = player
 
 
  for x=-1,grid.width do
@@ -22,7 +28,6 @@ function _init()
    else
     grid.items[x][y] = creategrass()
    end
-   
   end
  end
 
@@ -31,6 +36,7 @@ function _init()
 end
 
 -- accurate to .xxxx
+-- could prob be written better
 function rndper(p)
  local d = flr(p*10000)
  return rnd(10000) < d
@@ -62,7 +68,7 @@ function createfire()
  local i = createitem()
  i.type = "fire"
  i.dwindlechance = .90
- i.spreadchance = .90
+ i.spreadchance = .40
  i.burnheight = 10
  i.burnheightmax = 10
  return i
@@ -91,6 +97,17 @@ end
 function update(grid, shouldstep)
  if btnp(2) then
   grid.items[5][5].burned = true
+ end
+
+ local pl = grid.player
+ if btnp(0) then
+  pl.x -= 1
+ elseif btnp(1) then
+  pl.x += 1
+ elseif btnp(2) then
+  pl.y -= 1
+ elseif btnp(3) then
+  pl.y += 1
  end
 
 
@@ -165,77 +182,53 @@ function pointdistance(x1,y1,x2,y2)
  return sqrt(xsqu + ysqu)
 end
 
+--fireheight between 0 (nofire) and 1 (fullfire)
+function drawfire(ix,iy,fireheight)
+ local firesprite = 16 + rnd(16) -- row of 16 possible fire sprites
+ local flipx = rndper(.50)
 
--- for this to work, width must be divisible by 4
-function drawfire(ix,iy,burnheight,burnheightmax)
- --using sprite sheet spot 32 as tempspace and avoiding pset
- local sx = 0
- local sy = 16
 
- local width = 8
- local height = 8
+ local pixelfh = flr(8*fireheight)
+ local adjpfh = max(pixelfh,2)
+ local pushdown = 8 - adjpfh
 
-  -- fire hottest point
- local fhp = {x=sx+(width/2), y=sy+height}
- -- max distance fire can be drawn from hp
- local maxdisthp = (9*(height/10))*(burnheight/burnheightmax)
+ -- draw grass background
+ spr(5,ix,iy)
 
- local et = {} --eighttable
- local spritesheetmemstart=0x0
- local bytesperrow = 128/2
- local startpoint=(0x0) + (bytesperrow*sy)+(sx/2)
 
- startpoint-=bytesperrow
+ clip(ix,iy,8,8)
+ palt(0,true) -- make black transparent
 
- for y=sy,sy+height-1 do
-  startpoint += bytesperrow
-  for x=sx,sx+width-1 do
-   local dist = pointdistance(x,y, fhp.x, fhp.y)
-   local distmod = 1-(min(1,(dist/maxdisthp)))
-   -- white
-   if rndper(distmod*.2) then
-    add(et,7)
-   -- orange
-   elseif rndper(distmod*.6) then
-    add(et,9)
-   -- red
-   elseif rndper(distmod*.3) then
-    add(et,8)
-   -- black
-   else
-    add(et,0)
-   end
+ spr(firesprite,ix,iy+pushdown,1,1)
 
-   if (#et == 8) then
-    colorbyte = et[5] | (et[6] << 4) | (et[7] << 8) | (et[8] << 12)
-    colorbyteb = (et[1] << 0) | (et[2] << 4) | (et[3] << 8) | (et[4] << 12)
-    colorbytetotal = colorbyte | (colorbyteb >>> 16)
-    poke4(startpoint, colorbytetotal)
-    -- startpoint+=32
-    et = {}
-   end
-
-  end
- end
- -- background for fire
- spr(6,ix,iy)
- -- fire effect
- sspr(sx,sy,width,height,ix,iy)
+ palt()
+ clip()
 end
 
 
 function draw(grid)
  cls()
+ local pl = grid.player
  for x=0,grid.width-1 do
   for y=0,grid.height-1 do
    obj = grid.items[x][y]
+   px = x*8
+   py = y*8
    if (obj.type == "grass") then
-    spr(5,x*8,y*8)
+    spr(5,px,py)
    elseif (obj.type == "fire") then
-    drawfire(x*8,y*8,obj.burnheight,obj.burnheightmax)
+    drawfire(px,py,obj.burnheight/obj.burnheightmax)
    elseif (obj.type == "dirt") then
-    spr(4,x*8,y*8)
+    spr(4,px,py)
    end
+
+   if (pl.x == x and pl.y == y) then
+    palt(0,true)
+    spr(1,px,py)
+    palt()
+   end
+
+
   end
  end
 end
