@@ -9,22 +9,32 @@ function _init()
  globalg.debugstr = ""
 
  local grid = {}
+ grid.x = 0
+ grid.y = 0
  grid.width = 16
- grid.height = 14
+ grid.height = 12
  grid.items = {}
 
  local player = {}
  player.x = 5
  player.y = 5
  player.dir = nil
+ player.selabil = 1
+
+ local abil = {}
+ add(abil,{name="walk",sprite=2})
+ add(abil,{name="dash",sprite=9})
+ add(abil,{name="sleep",sprite=10})
+
+ player.abil = abil
 
  grid.player = player
 
 
- for x=-1,grid.width do
+ for x=0,grid.width do
    grid.items[x] = {}
-  for y=-1,grid.height do
-   if x==-1 or y==-1 or x==-1 or y==-1 then
+  for y=0,grid.height do
+   if x==0 or y==0 or x==grid.width-1 or y==grid.height-1 then
     grid.items[x][y] = createborder()
    else
     grid.items[x][y] = creategrass()
@@ -44,12 +54,13 @@ function rndper(p)
 end
 
 function createitem()
- return {type=nil,burned=false}
+ return {type=nil,burned=false,walkable=true}
 end
 
 function createborder()
  local i = createitem()
  i.type = "border"
+ i.walkable = false
  return i
 end
 
@@ -65,6 +76,7 @@ function createdirt()
  return i
 end
 
+-- sometimes walkable?
 function createfire()
  local i = createitem()
  i.type = "fire"
@@ -95,6 +107,8 @@ function _update()
 
 end
 
+
+
 function update(grid, shouldstep)
  if btnp(2) then
   grid.items[5][5].burned = true
@@ -111,6 +125,19 @@ function update(grid, shouldstep)
   pl.dir = "down"
  end
 
+ if btnp(4) then
+  pl.selabil = pl.selabil - 1
+  if (pl.selabil < 1) then
+   pl.selabil = #pl.abil
+  end
+ elseif btnp(5) then
+  pl.selabil = pl.selabil + 1
+  if (pl.selabil > #pl.abil) then
+   pl.selabil = 1
+  end
+ end
+
+
 
  if (shouldstep == true) then
   stepplayer(grid)
@@ -121,19 +148,42 @@ end
 
 function stepplayer(grid)
  local pl = grid.player
+ local abil = pl.abil[pl.selabil]
 
- if pl.dir == "left" then
-  pl.x -= 1
- elseif pl.dir == "right" then
-  pl.x += 1
- elseif pl.dir == "up" then
-  pl.y -= 1
- elseif pl.dir == "down" then
-  pl.y += 1
+ if (abil.name == "walk") then
+  stepplayerwalk(grid)
+ elseif (abil.name == "dash") then
+  -- elseif code
+ elseif (abil.name == "sleep") then
+  -- do nothing
  end
-  pl.dir = nil
 
 end
+
+function stepplayerwalk(grid)
+ local pl = grid.player
+ local nx,ny = pl.x,pl.y
+
+ if pl.dir == "left" then
+  nx -= 1
+ elseif pl.dir == "right" then
+  nx += 1
+ elseif pl.dir == "up" then
+  ny -= 1
+ elseif pl.dir == "down" then
+  ny += 1
+ end
+ pl.dir = nil
+
+ if grid.items[nx][ny].walkable then
+  pl.x = nx
+  pl.y = ny
+ end
+
+
+end
+
+
 
 function stepgrid(grid)
  for x=0,grid.width-1 do
@@ -223,18 +273,29 @@ function drawfire(ix,iy,fireheight)
  clip()
 end
 
-function drawrect(x,y,w,h,col)
+function drawrectfill(x,y,w,h,col)
  rectfill(x,y,x+w-1,y+h-1,col)
+end
+
+function drawrect(x,y,w,h,col)
+ rect(x,y,x+w-1,y+h-1,col)
+end
+
+function sprcoord(num)
+ local row = num \ 16
+ local spotinrow = num % 16
+ return {x=spotinrow*8,y=row*8}
 end
 
 function drawhud(game)
  local g = game
  local pl = g.grid.player
 
+ -- draw turn timer
  local perc = g.framestepcount / g.framesperstep
 
  local barcol = 7
- if perc > .8 then
+ if perc > .86 then
   barcol = 8
  elseif perc > .5 then
   barcol = 6
@@ -242,21 +303,47 @@ function drawhud(game)
   barcol = 5
  end
 
- -- draw turn timer
  local barheight = 4
+ local overlapamt = 4
 
- local maxwidth = 8*8 + (4) -- allow a lil overlap
+ local maxwidth = (8*8) + (overlapamt) -- allow a lil overlap
  local barwidth = maxwidth*perc
 
  -- draw bar from left
  local x1 = 0
  local y = (8*16)-1-barheight
- drawrect(x1,y,barwidth,barheight,barcol)
+ drawrectfill(x1,y,barwidth,barheight,barcol)
 
  -- draw bar from right
  local minx2 = 8*8
  local x2 = minx2 + (minx2 - barwidth)
- drawrect(x2,y,barwidth,barheight,barcol)
+ drawrectfill(x2,y,barwidth,barheight,barcol)
+
+
+ -- draw abilities
+ local xstart = 0
+ local xend = (8*16)-1
+ local ystart = (8*g.grid.height)+g.grid.y
+ local yend = (8*16)-1-barheight
+ local abilcount = #pl.abil
+ local abilwidth = (xend-xstart)/abilcount
+ local abilheight = (yend-ystart)
+
+
+ for i=1,#pl.abil do
+  local abil = pl.abil[i]
+
+  local rectcol = 4
+
+  if (pl.selabil == i) then
+   rectcol = 10
+  end
+
+  local sc = sprcoord(abil.sprite)
+  sspr(sc.x,sc.y,8,8,xstart,ystart,abilwidth,abilheight)
+  drawrect(xstart,ystart,abilwidth,abilheight,rectcol)
+  xstart += abilwidth
+ end
 
 
 end
@@ -287,9 +374,12 @@ function drawplayer(grid)
 end
 
 function draw(game)
+
  drawgrid(game.grid)
  drawplayer(game.grid)
  drawhud(game)
+
+ --drawrect(0, 0, 128, 128, 1)
 end
 
 
@@ -299,8 +389,8 @@ function drawgrid(grid)
  for x=0,grid.width-1 do
   for y=0,grid.height-1 do
    obj = grid.items[x][y]
-   px = x*8
-   py = y*8
+   px = (x*8)+grid.x
+   py = (y*8)+grid.y
    if (obj.type == "grass") then
     spr(5,px,py)
    elseif (obj.type == "fire") then
@@ -317,7 +407,7 @@ function dprint(o)
 end
 
 function dprintflush()
- print(globalg.debugstr,0,0,0)
+ print(globalg.debugstr,1,1,15)
  globalg.debugstr = ""
 end
 
