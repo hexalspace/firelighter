@@ -16,6 +16,7 @@ function _init()
  local player = {}
  player.x = 5
  player.y = 5
+ player.dir = 0
 
  grid.player = player
 
@@ -101,13 +102,13 @@ function update(grid, shouldstep)
 
  local pl = grid.player
  if btnp(0) then
-  pl.x -= 1
+  pl.dir = "left"
  elseif btnp(1) then
-  pl.x += 1
+  pl.dir = "right"
  elseif btnp(2) then
-  pl.y -= 1
+  pl.dir = "up"
  elseif btnp(3) then
-  pl.y += 1
+  pl.dir = "down"
  end
 
 
@@ -205,8 +206,38 @@ function drawfire(ix,iy,fireheight)
  clip()
 end
 
+function drawplayer(grid)
+ -- draw player sprite
+ local pl = grid.player
+
+ local px, py = pl.x*8, pl.y*8
+
+ local offset = 3
+
+ palt(0,true)
+
+ spr(1,px,py)
+
+ -- draw direction arrow
+ if pl.dir == "left" then
+  spr(2,px-offset,py,1,1,true)
+ elseif pl.dir == "right" then
+  spr(2,px+offset,py)
+ elseif pl.dir == "up" then
+  spr(3,px,py-offset)
+ elseif pl.dir == "down" then
+  spr(3,px,py+offset,1,1,false,true)
+ end
+ palt()
+end
 
 function draw(grid)
+ drawgrid(grid)
+ drawplayer(grid)
+end
+
+
+function drawgrid(grid)
  cls()
  local pl = grid.player
  for x=0,grid.width-1 do
@@ -221,14 +252,6 @@ function draw(grid)
    elseif (obj.type == "dirt") then
     spr(4,px,py)
    end
-
-   if (pl.x == x and pl.y == y) then
-    palt(0,true)
-    spr(1,px,py)
-    palt()
-   end
-
-
   end
  end
 end
