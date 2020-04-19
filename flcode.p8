@@ -4,7 +4,7 @@ function _init()
  globalg = {}
  globalg.dt = 1/30
  globalg.framestepcount=0
- globalg.framesperstep=100
+ globalg.framesperstep=200
  globalg.pause = false
  globalg.debugstr = ""
 
@@ -18,13 +18,13 @@ function _init()
  local player = {}
  player.x = 5
  player.y = 5
- player.dir = nil
+ player.dir = "right"
  player.selabil = 1
 
  local abil = {}
- add(abil,{name="walk",sprite=2})
- add(abil,{name="dash",sprite=9})
- add(abil,{name="sleep",sprite=10})
+ add(abil,{name="walk",sprite=2,directional=true})
+ add(abil,{name="dash",sprite=9,directional=true})
+ add(abil,{name="sleep",sprite=10,directional=false})
 
  player.abil = abil
 
@@ -81,7 +81,7 @@ function createfire()
  local i = createitem()
  i.type = "fire"
  i.dwindlechance = .90
- i.spreadchance = .40
+ i.spreadchance = .25
  i.burnheight = 10
  i.burnheightmax = 10
  return i
@@ -107,7 +107,7 @@ function update(g, grid, shouldstep)
   -- if commited to turn, allow advancing of time
   local stepmod = 1
   if btn(4) then
-   stepmod = 4
+   stepmod = 8
   end
 
   g.framestepcount+= (1*stepmod)
@@ -138,17 +138,17 @@ function update(g, grid, shouldstep)
   if (pl.selabil > #pl.abil) then
    pl.selabil = 1
   end
+
  end
 
  if (shouldstep == true) then
-  stepplayer(grid)
-  stepgrid(grid)
+  stepplayer(grid, pl)
+  stepgrid(grid, pl)
  end
 
 end
 
-function stepplayer(grid)
- local pl = grid.player
+function stepplayer(grid, pl)
  local abil = pl.abil[pl.selabil]
 
  if (abil.name == "walk") then
@@ -160,7 +160,7 @@ function stepplayer(grid)
  end
  -- not sure if this is better or worse control wise
  -- to zero out the dir
- pl.dir = nil
+ -- pl.dir = nil
 
 end
 
@@ -185,6 +185,11 @@ function stepplayerdash(grid, pl)
   elseif pl.dir == "down" then
    ty += 1
   end
+
+  if grid.items[tx][ty].walkable then
+   grid.items[tx][ty] = createdirt()
+  end
+
  until (not grid.items[tx][ty].walkable)
 
  pl.x = nx
@@ -215,16 +220,17 @@ function stepplayerwalk(grid, pl)
  if grid.items[nx][ny].walkable then
   pl.x = nx
   pl.y = ny
+
+  grid.items[nx][ny] = creategrass()
  end
 
 end
 
-
-
-function stepgrid(grid)
+function stepgrid(grid, pl)
  for x=0,grid.width-1 do
   for y=0,grid.height-1 do
-   obj = grid.items[x][y]
+   local obj = grid.items[x][y]
+   local isplayerpos = x == pl.x and y == pl.y
    if (obj.type == "fire") then
     local burnmod = obj.burnheight/obj.burnheightmax
     if rndper(obj.spreadchance*burnmod) then
@@ -250,7 +256,8 @@ function stepgrid(grid)
 
  for x=0,grid.width-1 do
   for y=0,grid.height-1 do
-   obj = grid.items[x][y]
+   local obj = grid.items[x][y]
+   local isplayerpos = x == pl.x and y == pl.y
 
    if (obj.type == "border") then
     -- do nothing
@@ -259,13 +266,15 @@ function stepgrid(grid)
      grid.items[x][y] = createdirt()
     end
    elseif (obj.type == "grass") then
-    if obj.burned then
+    if obj.burned and not isplayerpos then
      grid.items[x][y] = createfire()
     end
    elseif (obj.type == "dirt") then
     -- do nothing
    end
 
+   -- unset any sent messages
+   obj.burned = false
 
   end
  end
@@ -397,14 +406,16 @@ function drawplayer(grid)
  spr(1,px,py)
 
  -- draw direction arrow
- if pl.dir == "left" then
-  spr(2,px-offset,py,1,1,true)
- elseif pl.dir == "right" then
-  spr(2,px+offset,py)
- elseif pl.dir == "up" then
-  spr(3,px,py-offset)
- elseif pl.dir == "down" then
-  spr(3,px,py+offset,1,1,false,true)
+ if pl.abil[pl.selabil].directional then
+  if pl.dir == "left" then
+   spr(2,px-offset,py,1,1,true)
+  elseif pl.dir == "right" then
+   spr(2,px+offset,py)
+  elseif pl.dir == "up" then
+   spr(3,px,py-offset)
+  elseif pl.dir == "down" then
+   spr(3,px,py+offset,1,1,false,true)
+  end
  end
  palt()
 end
