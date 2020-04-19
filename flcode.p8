@@ -165,37 +165,61 @@ function pointdistance(x1,y1,x2,y2)
  return sqrt(xsqu + ysqu)
 end
 
-function drawfire(ix,iy,width,height,burnheight,burnheightmax)
+
+-- for this to work, width must be divisible by 4
+function drawfire(ix,iy,burnheight,burnheightmax)
  --using sprite sheet spot 32 as tempspace and avoiding pset
  local sx = 0
- local sy = 16 
+ local sy = 16
+
+ local width = 8
+ local height = 8
 
   -- fire hottest point
  local fhp = {x=sx+(width/2), y=sy+height}
  -- max distance fire can be drawn from hp
  local maxdisthp = (9*(height/10))*(burnheight/burnheightmax)
 
- for x=sx,sx+width-1 do
-  for y=sy,sy+height-1 do
+ local et = {} --eighttable
+ local spritesheetmemstart=0x0
+ local bytesperrow = 128/2
+ local startpoint=(0x0) + (bytesperrow*sy)+(sx/2)
+
+ startpoint-=bytesperrow
+
+ for y=sy,sy+height-1 do
+  startpoint += bytesperrow
+  for x=sx,sx+width-1 do
    local dist = pointdistance(x,y, fhp.x, fhp.y)
    local distmod = 1-(min(1,(dist/maxdisthp)))
    -- white
    if rndper(distmod*.2) then
-    sset(x,y,7)
+    add(et,7)
    -- orange
    elseif rndper(distmod*.6) then
-    sset(x,y,9)
+    add(et,9)
    -- red
    elseif rndper(distmod*.3) then
-    sset(x,y,8)
+    add(et,8)
    -- black
    else
-    sset(x,y,0)
+    add(et,0)
    end
+
+   if (#et == 8) then
+    colorbyte = et[5] | (et[6] << 4) | (et[7] << 8) | (et[8] << 12)
+    colorbyteb = (et[1] << 0) | (et[2] << 4) | (et[3] << 8) | (et[4] << 12)
+    colorbytetotal = colorbyte | (colorbyteb >>> 16)
+    poke4(startpoint, colorbytetotal)
+    -- startpoint+=32
+    et = {}
+   end
+
   end
  end
  -- background for fire
  spr(6,ix,iy)
+ -- fire effect
  sspr(sx,sy,width,height,ix,iy)
 end
 
@@ -208,7 +232,7 @@ function draw(grid)
    if (obj.type == "grass") then
     spr(5,x*8,y*8)
    elseif (obj.type == "fire") then
-    drawfire(x*8,y*8,8,8,obj.burnheight,obj.burnheightmax)
+    drawfire(x*8,y*8,obj.burnheight,obj.burnheightmax)
    elseif (obj.type == "dirt") then
     spr(4,x*8,y*8)
    end
