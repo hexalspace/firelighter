@@ -111,6 +111,7 @@ end
 -- sometimes walkable?
 function createfire()
  local i = createitem()
+ sfx(0)
  i.type = "fire"
  i.dwindlechance = .90
  i.spreadchance = .25
@@ -138,6 +139,7 @@ function update(g, grid, shouldstep)
   g.textframecoutner += 1
   if (g.textframecoutner > 50) then
    if anybuttonp() then
+    sfx(5)
     g.textframecoutner = 0
     g.state = "game"
     globalg.grid = generategrid(16,12)
@@ -148,6 +150,7 @@ function update(g, grid, shouldstep)
   g.textframecoutner += 1
   if (g.textframecoutner > 50) then
    if anybuttonp() then
+    sfx(5)
     g.textframecoutner = 0
     g.state = "game"
     globalg.grid = generategrid(16,12)
@@ -181,6 +184,7 @@ function update(g, grid, shouldstep)
  end
 
  if btnp(5) then
+  sfx(5)
   pl.selabil = pl.selabil + 1
   if (pl.selabil > #pl.abil) then
    pl.selabil = 1
@@ -241,6 +245,7 @@ function stepplayerdash(grid, pl)
 
  pl.x = nx
  pl.y = ny
+ sfx(2)
 
 end
 
@@ -269,6 +274,7 @@ function stepplayerwalk(grid, pl)
   pl.y = ny
 
   grid.items[nx][ny] = creategrass()
+  sfx(1)
  end
 
 end
@@ -337,8 +343,8 @@ function stepgrid(g,grid,pl)
  -- game over!
  if not seenfire then
   g.state = "over"
+  sfx(3)
  end
-
 end
 
 function _draw()
@@ -460,11 +466,11 @@ function drawplayer(grid)
 
  local px, py = pl.x*8, pl.y*8
 
- local offset = 3
+ local offset = 5
 
  palt(0,true)
 
- spr(1,px,py)
+ spr(7,px,py)
 
  -- draw direction arrow
  if pl.abil[pl.selabil].directional then
