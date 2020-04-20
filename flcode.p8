@@ -42,7 +42,7 @@ function generategrid(width,height)
      grid.items[x][y] = creategrass()
     elseif (x == strtfrx) and (y == strtfry) then
      grid.items[x][y] = createfire()
-    elseif rndper(.50) then
+    elseif rndper(.65) then
      grid.items[x][y] = creategrass()
     elseif rndper(.80) then
      grid.items[x][y] = createdirt()
