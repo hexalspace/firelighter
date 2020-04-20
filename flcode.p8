@@ -1,25 +1,27 @@
 -- levelcode
 
-function _init()
- globalg = {}
- globalg.dt = 1/30
- globalg.framestepcount=0
- globalg.framesperstep=200
- globalg.pause = false
- globalg.debugstr = ""
+function anybutton()
+ return btn(0) or btn(1) or btn(2) or btn(3) or btn(4) or btn(5)
+end
 
+function anybuttonp()
+ return btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5)
+end
+
+function generategrid(width,height)
  local grid = {}
- grid.x = 0
- grid.y = 0
  grid.width = 16
  grid.height = 12
  grid.items = {}
 
  local player = {}
- player.x = 5
- player.y = 5
+ player.x = flr(rnd(7)+4)
+ player.y = flr(rnd(6)+3)
  player.dir = "right"
  player.selabil = 1
+
+ local strtfrx = player.x+2
+ local strtfry = player.y+2
 
  local abil = {}
  add(abil,{name="walk",sprite=2,directional=true})
@@ -30,19 +32,42 @@ function _init()
 
  grid.player = player
 
-
  for x=0,grid.width do
    grid.items[x] = {}
   for y=0,grid.height do
    if x==0 or y==0 or x==grid.width-1 or y==grid.height-1 then
     grid.items[x][y] = createborder()
    else
-    grid.items[x][y] = creategrass()
+    if (x == player.x and y == player.y) then
+     grid.items[x][y] = creategrass()
+    elseif (x == strtfrx) and (y == strtfry) then
+     grid.items[x][y] = createfire()
+    elseif rndper(.50) then
+     grid.items[x][y] = creategrass()
+    elseif rndper(.80) then
+     grid.items[x][y] = createdirt()
+    elseif rndper(.95) then
+     grid.items[x][y] = createrock()
+    else
+     grid.items[x][y] = createfire()
+    end
    end
   end
  end
 
- globalg.grid = grid
+ return grid
+
+end
+
+function _init()
+ globalg = {}
+ globalg.dt = 1/30
+ globalg.framestepcount=0
+ globalg.framesperstep=200
+ globalg.pause = false
+ globalg.debugstr = ""
+ globalg.state = "intro"
+ globalg.textframecoutner = 0
 
 end
 
@@ -76,6 +101,13 @@ function createdirt()
  return i
 end
 
+function createrock()
+ local i = createitem()
+ i.type = "rock"
+ i.walkable=false
+ return i
+end
+
 -- sometimes walkable?
 function createfire()
  local i = createitem()
@@ -84,6 +116,7 @@ function createfire()
  i.spreadchance = .25
  i.burnheight = 10
  i.burnheightmax = 10
+ i.walkable = false
  return i
 end
 
@@ -100,9 +133,28 @@ function _update()
 
 end
 
-
-
 function update(g, grid, shouldstep)
+ if (g.state == "intro") then
+  g.textframecoutner += 1
+  if (g.textframecoutner > 50) then
+   if anybuttonp() then
+    g.textframecoutner = 0
+    g.state = "game"
+    globalg.grid = generategrid(16,12)
+   end
+  end
+  return
+ elseif (g.state == "over") then
+  g.textframecoutner += 1
+  if (g.textframecoutner > 50) then
+   if anybuttonp() then
+    g.textframecoutner = 0
+    g.state = "game"
+    globalg.grid = generategrid(16,12)
+   end
+  end
+  return
+ end
 
   -- if commited to turn, allow advancing of time
   local stepmod = 1
@@ -116,11 +168,6 @@ function update(g, grid, shouldstep)
    shouldstep = true
    g.framestepcount = 0
   end
-
- -- placeholder game start
- if btnp(2) then
-  grid.items[5][5].burned = true
- end
 
  local pl = grid.player
  if btnp(0) then
@@ -143,7 +190,7 @@ function update(g, grid, shouldstep)
 
  if (shouldstep == true) then
   stepplayer(grid, pl)
-  stepgrid(grid, pl)
+  stepgrid(g, grid, pl)
  end
 
 end
@@ -226,7 +273,7 @@ function stepplayerwalk(grid, pl)
 
 end
 
-function stepgrid(grid, pl)
+function stepgrid(g,grid,pl)
  for x=0,grid.width-1 do
   for y=0,grid.height-1 do
    local obj = grid.items[x][y]
@@ -250,10 +297,16 @@ function stepgrid(grid, pl)
      obj.burnheight -= 1
     end
 
+    -- you can walk over low burning fire
+    if (obj.burnheight < 6) then
+     grid.items[x][y].walkable = true
+    end
+
    end
   end
  end
 
+ local seenfire = false
  for x=0,grid.width-1 do
   for y=0,grid.height-1 do
    local obj = grid.items[x][y]
@@ -264,6 +317,8 @@ function stepgrid(grid, pl)
    elseif (obj.type == "fire") then
     if obj.burnheight <= 0 then
      grid.items[x][y] = createdirt()
+    else
+     seenfire = true
     end
    elseif (obj.type == "grass") then
     if obj.burned and not isplayerpos then
@@ -277,6 +332,11 @@ function stepgrid(grid, pl)
    obj.burned = false
 
   end
+ end
+
+ -- game over!
+ if not seenfire then
+  g.state = "over"
  end
 
 end
@@ -316,6 +376,7 @@ function drawfire(ix,iy,fireheight)
 
  palt()
  clip()
+
 end
 
 function drawrectfill(x,y,w,h,col)
@@ -368,7 +429,7 @@ function drawhud(game)
  -- draw abilities
  local xstart = 0
  local xend = (8*16)-1
- local ystart = (8*g.grid.height)+g.grid.y
+ local ystart = (8*g.grid.height)
  local yend = (8*16)-1-barheight
  local abilcount = #pl.abil
  local abilwidth = (xend-xstart)/abilcount
@@ -420,30 +481,60 @@ function drawplayer(grid)
  palt()
 end
 
-function draw(game)
+function draw(g)
+ if (g.state == "intro") then
+  cls()
+  print("you love its sweet heat",0,0,2)
+  print("you feed it grass",0,6,3)
+  print("and temper it with dirt",0,12,4)
+  print("keeping it alive, you are...",0,18,14)
+  print("a firelighter",0,30,7)
+  print("a firelighter",1,32,10)
+  print("a firelighter",2,34,9)
+  print("a firelighter",3,36,8)
+  return
+ elseif (g.state == "over") then
+  cls()
+  print("you love its sweet heat",0,0,2)
+  print("you feed it grass",0,6,3)
+  print("and temper it with dirt",0,12,4)
+  print("keeping it alive, you are...",0,18,14)
+  print("a firelighter",0,30,7)
+  print("a firelighter",1,32,10)
+  print("a firelighter",2,34,9)
+  print("a firelighter",3,36,8)
+  print("onward!",0,75,15)
+  print("for the flames call again!",0,81,15)
+  return
+ end
 
- drawgrid(game.grid)
- drawplayer(game.grid)
- drawhud(game)
+ drawgrid(g.grid)
+ drawplayer(g.grid)
+ drawhud(g)
 
  --drawrect(0, 0, 128, 128, 1)
 end
 
 
+-- why dont objects store sprite number? fool!
 function drawgrid(grid)
  cls()
  local pl = grid.player
  for x=0,grid.width-1 do
   for y=0,grid.height-1 do
    obj = grid.items[x][y]
-   px = (x*8)+grid.x
-   py = (y*8)+grid.y
+   px = (x*8)
+   py = (y*8)
    if (obj.type == "grass") then
     spr(5,px,py)
    elseif (obj.type == "fire") then
     drawfire(px,py,obj.burnheight/obj.burnheightmax)
+    -- uncomment to show fireheight
+    -- print(tostr(obj.burnheight),px,py)
    elseif (obj.type == "dirt") then
     spr(4,px,py)
+   elseif (obj.type == "rock") then
+    spr(11,px,py)
    end
   end
  end
